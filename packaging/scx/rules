@@ -1,0 +1,50 @@
+#!/usr/bin/make -f
+# Derived from sched-ext/scx-scheds-packaging-deb (Andrea Righi), adapted
+# for the Debian sid toolchain: plain rustc/cargo (sid ships >= 1.91) and
+# full build parallelism (LTO is disabled by debian/patches).
+
+ARCH := $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+CARGO_BUILD_TARGETDIR := debian/cargo-target
+CARGO_WORKSPACE_ARGS := \
+	--jobs $(shell nproc) \
+	--frozen --offline --locked \
+	--exclude scxtop \
+	--exclude xtask \
+	--exclude scxcash \
+	--exclude vmlinux_docify \
+	--exclude scx_arena_selftests \
+	--workspace
+CARGO_TEST_WORKSPACE_ARGS := $(CARGO_WORKSPACE_ARGS) --exclude scx_mitosis
+
+export RUSTC = /usr/bin/rustc
+export RUSTDOC = /usr/bin/rustdoc
+export CARGO = /usr/bin/cargo
+export BPF_CLANG = /usr/bin/clang
+export TARGET = $(shell $(RUSTC) -vV | sed -n 's/^host: //p')
+
+%:
+	dh $@ --buildsystem=none
+
+fetch:
+	$(CARGO) vendor
+
+override_dh_auto_build:
+	@if [ -d vendor ]; then \
+		python3 debian/sanitize-vendor-checksums.py; \
+	fi
+	BPF_CLANG=$(BPF_CLANG) $(CARGO) build --release \
+		$(CARGO_WORKSPACE_ARGS)
+
+override_dh_auto_test:
+	@if echo " $(DEB_BUILD_OPTIONS) " | grep -qw nocheck; then \
+		echo "Skipping tests due to DEB_BUILD_OPTIONS=nocheck"; \
+	else \
+		BPF_CLANG=$(BPF_CLANG) $(CARGO) test --release \
+			$(CARGO_TEST_WORKSPACE_ARGS); \
+	fi
+
+override_dh_auto_install:
+	@echo "Skipping cargo install"
+
+override_dh_installsystemd:
+	dh_installsystemd --name=scx --no-enable --no-start

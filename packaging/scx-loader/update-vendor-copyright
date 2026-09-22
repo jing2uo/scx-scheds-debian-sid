@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Refresh crate-level DEP-5 metadata for Cargo-vendored crates.
+
+Run this from a fully prepared source tree, after ``cargo vendor``. One
+stanza is generated for every crate in the final vendor tree. The crate's
+Cargo.toml supplies its SPDX license expression and declared authors; crates
+without authors fall back to copyright notices in bundled legal files.
+"""
+import argparse
+import re
+import sys
+from pathlib import Path
+import tomllib
+
+
+BEGIN = "# BEGIN VENDORED-CRATES-COPYRIGHT"
+END = "# END VENDORED-CRATES-COPYRIGHT"
+
+
+COPYRIGHT_RE = re.compile(
+    r"^\s*(?:[#*/;]|<!--)?\s*"
+    r"(?:copyright\s*(?:\(c\)|©)?|©)\s*"
+    r"(?:\d{4}|\d{4}\s*[-,]\s*\d{4}).+$",
+    re.IGNORECASE | re.MULTILINE,
+)
+LEGAL_FILENAMES = ("COPYING*", "COPYRIGHT*", "LICENSE*", "NOTICE*")
+
+
+def dep5_license(expression: str) -> str:
+    """Translate common SPDX operators to DEP-5 operators."""
+    return expression.replace(" OR ", " or ").replace(" AND ", " and ")
+
+
+def legal_file_copyrights(crate: Path) -> list[str]:
+    notices = set()
+    for pattern in LEGAL_FILENAMES:
+        for path in crate.glob(pattern):
+            if not path.is_file():
+                continue
+            try:
+                contents = path.read_text(errors="replace")
+            except OSError:
+                continue
+            notices.update(
+                match.group(0).strip().replace("\n", " ")
+                for match in COPYRIGHT_RE.finditer(contents)
+            )
+    return sorted(notices)
+
+
+def vendor_stanzas(vendor: Path) -> str:
+    stanzas = []
+    for manifest in sorted(vendor.glob("*/Cargo.toml")):
+        crate = manifest.parent
+        package = tomllib.loads(manifest.read_text()).get("package", {})
+        name = package.get("name", crate.name)
+        license_expression = package.get("license")
+        if not license_expression:
+            raise SystemExit(f"{manifest} does not declare package.license")
+
+        copyrights = package.get("authors", [])
+        if not copyrights:
+            copyrights = legal_file_copyrights(crate)
+        if not copyrights:
+            copyrights = [f"the {name} contributors"]
+
+        stanzas.append(
+            "Files: vendor/{}/*\nCopyright:\n {}\nLicense: {}".format(
+                crate.name,
+                "\n ".join(sorted(set(copyrights))),
+                dep5_license(license_expression),
+            )
+        )
+    if not stanzas:
+        raise SystemExit("no vendored crate manifests found")
+    return "\n\n".join(stanzas) + "\n"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source-root", type=Path, default=Path("."))
+    args = parser.parse_args()
+
+    root = args.source_root.resolve()
+    copyright_file = root / "debian" / "copyright"
+    vendor = root / "vendor"
+    if not copyright_file.is_file():
+        raise SystemExit(f"missing {copyright_file}")
+    if not vendor.is_dir():
+        raise SystemExit(f"missing {vendor}")
+
+    copyright = copyright_file.read_text()
+    try:
+        before, generated = copyright.split(BEGIN, 1)
+        _, after = generated.split(END, 1)
+    except ValueError:
+        raise SystemExit("debian/copyright is missing generated vendor markers")
+
+    copyright_file.write_text(
+        before + BEGIN + "\n" + vendor_stanzas(vendor) + END + after
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

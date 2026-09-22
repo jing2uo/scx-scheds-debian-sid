@@ -1,0 +1,101 @@
+name: build-deb
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'scx upstream version (e.g. 1.1.3), or "latest"'
+        default: 'latest'
+      loader_version:
+        description: 'scx-loader upstream version, or "latest"'
+        default: 'latest'
+      release:
+        type: boolean
+        default: false
+        description: 'Publish a GitHub Release with the debs'
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '30 18 * * 1' # weekly (Mon 18:30 UTC), auto-follow upstream
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve versions
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          resolve_latest() {
+            git ls-remote --tags --refs "https://github.com/$1" 'refs/tags/v*' \
+              | grep -Ev -- '-(rc|alpha|beta)' | sed 's|.*/v||' | sort -V | tail -1
+          }
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            v="${GITHUB_REF#refs/tags/v}"       # scx from our tag; loader from changelog
+            lv="$(sed -n '1s/^[^(]* (\([^)-]*\).*/\1/p' packaging/scx-loader/changelog)"
+          else
+            v="${{ inputs.version }}"
+            lv="${{ inputs.loader_version }}"
+          fi
+          [[ "$v" == latest ]] && v="$(resolve_latest sched-ext/scx)"
+          [[ "$lv" == latest ]] && lv="$(resolve_latest sched-ext/scx-loader)"
+
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "loader_version=$lv" >> "$GITHUB_OUTPUT"
+          echo ">> building scx $v + scx-loader $lv"
+
+          # On the weekly schedule, skip entirely if this pair was
+          # already released.
+          if [[ "${{ github.event_name }}" == "schedule" ]] \
+             && gh release view "scx-v$v" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo ">> scx-v$v already released; nothing to do"
+          fi
+
+      - name: Build debs
+        if: steps.ver.outputs.skip != 'true'
+        run: |
+          SCX_VERSION='${{ steps.ver.outputs.version }}' \
+          LOADER_VERSION='${{ steps.ver.outputs.loader_version }}' \
+          ./build.sh
+
+      - name: Upload artifacts
+        if: steps.ver.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: scx-${{ steps.ver.outputs.version }}-debs
+          path: out/*.deb
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: >-
+          steps.ver.outputs.skip != 'true' &&
+          (startsWith(github.ref, 'refs/tags/v') ||
+           github.event_name == 'schedule' ||
+           inputs.release == true)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          tag="scx-v$VERSION"
+          if gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" out/*.deb --clobber -R "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" out/*.deb -R "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "scx $VERSION (Debian sid)" \
+              --notes "sched_ext schedulers from [sched-ext/scx](https://github.com/sched-ext/scx) v$VERSION plus [scx-loader](https://github.com/sched-ext/scx-loader) (scx_loader / scxctl / scxtui), packaged against debian:sid. Install with: apt install ./scx_${VERSION}-1_amd64.deb ./scx-loader_*_amd64.deb"
+          fi

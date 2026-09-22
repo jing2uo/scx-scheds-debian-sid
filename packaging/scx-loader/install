@@ -1,0 +1,10 @@
+target/release/scx_loader usr/bin/
+target/release/scxctl usr/bin/
+target/release/scxtui usr/bin/
+services/scx_loader.service usr/lib/systemd/system/
+services/org.scx.Loader.service usr/share/dbus-1/system-services/
+configs/org.scx.Loader.conf usr/share/dbus-1/system.d/
+configs/org.scx.Loader.xml usr/share/dbus-1/interfaces/
+configs/org.scx.Loader.policy usr/share/polkit-1/actions/
+vendor-default/config.toml usr/share/scx_loader/
+debian/local/scx_loader.toml etc/

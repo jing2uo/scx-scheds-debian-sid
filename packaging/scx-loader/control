@@ -1,0 +1,30 @@
+Source: scx-loader
+Section: misc
+Priority: optional
+Maintainer: Komh <mail@guojing.io>
+Standards-Version: 4.7.3
+Build-Depends: debhelper-compat (= 13), fakeroot,
+ cargo (>= 1.91), rustc (>= 1.91)
+Homepage: https://github.com/sched-ext/scx-loader
+Vcs-Git: https://github.com/sched-ext/scx-loader
+Vcs-Browser: https://github.com/sched-ext/scx-loader
+
+Package: scx-loader
+Architecture: amd64 arm64 armhf ppc64el s390x
+Depends:
+ scx,
+ ${misc:Depends},
+ ${shlibs:Depends},
+Recommends:
+ dbus,
+Description: DBus loader daemon for sched_ext schedulers
+ scx_loader is a system daemon and DBus-based loader for sched_ext
+ schedulers, providing the org.scx.Loader system bus interface.
+ .
+ This package ships:
+  * scx_loader - the loader daemon (dbus-activated system service)
+  * scxctl     - command line client (get/list/start/switch/stop/...)
+  * scxtui     - terminal UI for scheduler management and status
+ .
+ Configure via /etc/scx_loader.toml; enable with
+ `systemctl enable --now scx_loader.service`.

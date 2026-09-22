@@ -1,0 +1,29 @@
+#!/usr/bin/make -f
+# scx-loader: pure-Rust workspace (no BPF, no C deps), vendored offline build.
+
+CARGO_WORKSPACE_ARGS := \
+	--jobs $(shell nproc) \
+	--frozen --offline --locked \
+	--exclude xtask \
+	--workspace
+
+export RUSTC = /usr/bin/rustc
+export RUSTDOC = /usr/bin/rustdoc
+export CARGO = /usr/bin/cargo
+
+%:
+	dh $@ --buildsystem=none
+
+override_dh_auto_build:
+	@if [ -d vendor ]; then \
+		python3 debian/sanitize-vendor-checksums.py; \
+	fi
+	$(CARGO) build --release \
+		$(CARGO_WORKSPACE_ARGS)
+
+override_dh_auto_install:
+	@echo "Skipping cargo install"
+
+# Units ship disabled: no enable, no start on install.
+override_dh_installsystemd:
+	dh_installsystemd --name=scx_loader --no-enable --no-start

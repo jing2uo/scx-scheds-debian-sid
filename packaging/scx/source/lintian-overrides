@@ -1,0 +1,4 @@
+# Cargo resolves every locked target dependency in --frozen --offline mode,
+# including winapi-x86_64-pc-windows-gnu on Linux.  Its upstream MinGW import
+# libraries are therefore required in vendor/ for reproducible offline builds.
+source-contains-prebuilt-windows-binary [vendor/winapi-x86_64-pc-windows-gnu/lib/*]
