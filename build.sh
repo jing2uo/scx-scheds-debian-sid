@@ -6,6 +6,9 @@
 #   SCX_VERSION=1.1.4 ./build.sh    # explicit scx version
 #   LOADER_VERSION=latest ./build.sh
 #   SCX_VERSION=latest LOADER_VERSION=latest ./build.sh
+#
+# Tests are skipped and no -dbgsym packages are produced; override with
+# DEB_BUILD_OPTIONS to change that (e.g. DEB_BUILD_OPTIONS="parallel=8").
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -45,7 +48,7 @@ echo ">> scx ${SCX_VERSION}, scx-loader ${LOADER_VERSION} (runner: ${RUNNER})"
 
 mkdir -p out
 "$RUNNER" run --rm \
-    -e DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)" \
+    -e DEB_BUILD_OPTIONS="${DEB_BUILD_OPTIONS:-nocheck noautodbgsym parallel=$(nproc)}" \
     -v "$(pwd)/out:/out" \
     "scx-scheds-debian-sid:${SCX_VERSION}" \
     bash -ec "

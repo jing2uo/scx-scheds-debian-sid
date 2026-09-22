@@ -107,9 +107,12 @@ SCX_VERSION=1.1.4 ./build.sh            # track a specific scx release
 SCX_VERSION=latest LOADER_VERSION=latest ./build.sh
 ```
 
-Artifacts land in `out/`. The container fetches upstream sources at build
-time, vendors all Rust crates for offline builds, and runs
-`dpkg-buildpackage` (tests skipped via `DEB_BUILD_OPTIONS=nocheck`).
+Artifacts land in `out/` — one `.deb` per source package. The container
+fetches upstream sources at build time, vendors all Rust crates for offline
+builds, and runs `dpkg-buildpackage` with
+`DEB_BUILD_OPTIONS="nocheck noautodbgsym parallel=$(nproc)"`, i.e. tests
+skipped and no `-dbgsym` packages. Set `DEB_BUILD_OPTIONS` yourself to
+change that (dropping `noautodbgsym` brings the debug symbol packages back).
 
 ## CI / releases
 
