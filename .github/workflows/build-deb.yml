@@ -15,8 +15,6 @@ on:
         description: 'Publish a GitHub Release with the debs'
   push:
     tags: ['v*']
-  schedule:
-    - cron: '30 18 * * 1' # weekly (Mon 18:30 UTC), auto-follow upstream
 
 permissions:
   contents: write
@@ -34,8 +32,6 @@ jobs:
 
       - name: Resolve versions
         id: ver
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           resolve_latest() {
@@ -57,23 +53,13 @@ jobs:
           echo "loader_version=$lv" >> "$GITHUB_OUTPUT"
           echo ">> building scx $v + scx-loader $lv"
 
-          # On the weekly schedule, skip entirely if this pair was
-          # already released.
-          if [[ "${{ github.event_name }}" == "schedule" ]] \
-             && gh release view "scx-v$v" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo ">> scx-v$v already released; nothing to do"
-          fi
-
       - name: Build debs
-        if: steps.ver.outputs.skip != 'true'
         run: |
           SCX_VERSION='${{ steps.ver.outputs.version }}' \
           LOADER_VERSION='${{ steps.ver.outputs.loader_version }}' \
           ./build.sh
 
       - name: Upload artifacts
-        if: steps.ver.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: scx-${{ steps.ver.outputs.version }}-debs
@@ -82,10 +68,7 @@ jobs:
 
       - name: Publish GitHub Release
         if: >-
-          steps.ver.outputs.skip != 'true' &&
-          (startsWith(github.ref, 'refs/tags/v') ||
-           github.event_name == 'schedule' ||
-           inputs.release == true)
+          startsWith(github.ref, 'refs/tags/v') || inputs.release == true
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.ver.outputs.version }}

@@ -116,14 +116,18 @@ change that (dropping `noautodbgsym` brings the debug symbol packages back).
 
 ## CI / releases
 
-`.github/workflows/build-deb.yml`:
+`.github/workflows/check-upstream.yml` — weekly (Mon 18:30 UTC) and on
+demand: compares the newest release tag of both upstream repos against the
+versions pinned in `packaging/*/changelog` and opens an issue when one is
+behind (nothing else; no build, no issue if everything is current, and no
+duplicate if the issue is already open).
 
-- **weekly schedule** — checks both upstream repos for new release tags and
-  publishes a GitHub Release (`scx-v<version>`) with the debs if the newest
-  version hasn't been released yet;
-- **tag push** `v*` — builds that scx version and publishes;
+`.github/workflows/build-deb.yml` — builds the debs, never on a schedule:
+
+- **tag push** `v*` — builds that scx version and publishes a GitHub Release
+  (`scx-v<version>`);
 - **workflow_dispatch** — manual run with version inputs; set the `release`
-  checkbox to publish.
+  checkbox to publish, otherwise the debs are only kept as run artifacts.
 
 ## Repository layout
 

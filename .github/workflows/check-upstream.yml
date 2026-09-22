@@ -1,0 +1,68 @@
+name: check-upstream
+
+# Weekly look at the two upstream repos. If either has a release tag newer
+# than the version pinned in packaging/*/changelog, open an issue; otherwise
+# do nothing. Building/releasing stays manual (build-deb.yml).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 18 * * 1' # Mon 18:30 UTC
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare upstream tags against packaged versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+
+          resolve_latest() { # resolve_latest <owner/repo>
+            git ls-remote --tags --refs "https://github.com/$1" 'refs/tags/v*' \
+              | grep -Ev -- '-(rc|alpha|beta)' | sed 's|.*/v||' | sort -V | tail -1
+          }
+
+          packaged() { # packaged <packaging-dir>
+            sed -n "1s/^[^(]* (\([^)-]*\).*/\1/p" "packaging/$1/changelog"
+          }
+
+          for pkg in scx scx-loader; do
+            have="$(packaged "$pkg")"
+            new="$(resolve_latest "sched-ext/$pkg")"
+            echo "$pkg: packaged $have, upstream $new"
+
+            # Only report genuine upgrades (ignores equal versions, and
+            # protects against a bad ls-remote parse going backwards).
+            [ "$have" = "$new" ] && continue
+            [ "$(printf '%s\n%s\n' "$have" "$new" | sort -V | tail -1)" = "$new" ] || continue
+
+            title="$pkg $new is available (packaged: $have)"
+            if gh issue list --state open --search "\"$title\" in:title" \
+                 --json title -q '.[].title' | grep -Fxq "$title"; then
+              echo ">> issue already open, skipping"
+              continue
+            fi
+
+            gh issue create --title "$title" --body "\
+          Upstream [sched-ext/$pkg](https://github.com/sched-ext/$pkg) released
+          [v$new](https://github.com/sched-ext/$pkg/releases/tag/v$new); this repo
+          still packages $have.
+
+          To update:
+
+          1. add a \`$new-1\` entry to \`packaging/$pkg/changelog\`;
+          2. run the \`build-deb\` workflow (or \`./build.sh\` locally) to check it
+             still builds;
+          3. push a \`v$new\` tag, or dispatch \`build-deb\` with \`release\` ticked,
+             to publish the debs.
+
+          _Opened automatically by \`.github/workflows/check-upstream.yml\`._"
+          done
