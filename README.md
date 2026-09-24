@@ -21,13 +21,25 @@ with `CONFIG_SCHED_CLASS_EXT`; e.g. XanMod).
 
 ## Installing
 
-Download the `.deb` files from the [releases page](../../releases) (release
-`scx-v<version>` contains everything), then:
+From the apt repository at <https://apt.guojing.io> (recommended — you get
+upgrades through `apt upgrade`):
 
 ```sh
-sudo apt install ./scx_<version>-1_amd64.deb
+sudo curl -fsSLo /usr/share/keyrings/guojing-archive-keyring.gpg \
+    https://apt.guojing.io/guojing-archive-keyring.gpg
+sudo curl -fsSLo /etc/apt/sources.list.d/guojing.sources \
+    https://apt.guojing.io/guojing.sources
+sudo apt update
+sudo apt install scx
 # optional, for scxctl/scxtui:
-sudo apt install ./scx-loader_<version>-1_amd64.deb
+sudo apt install scx-loader
+```
+
+Or download the `.deb` files from the [releases page](../../releases)
+(release `scx-v<version>` contains everything) and install them directly:
+
+```sh
+sudo apt install ./scx_<version>-1_amd64.deb ./scx-loader_<version>-1_amd64.deb
 ```
 
 Runtime dependencies are minimal (libc, libelf, libseccomp, zlib — libbpf is
@@ -129,12 +141,48 @@ duplicate if the issue is already open).
 - **workflow_dispatch** — manual run with version inputs; set the `release`
   checkbox to publish, otherwise the debs are only kept as run artifacts.
 
+Whenever `build-deb` publishes a release it also calls
+`.github/workflows/publish-apt.yml`, which can be run on its own too. It
+downloads the debs from the 3 most recent releases, builds a signed apt
+repository with `scripts/build-apt-repo.sh` and force-pushes it as a
+single commit to the `gh-pages` branch, which GitHub Pages serves at
+`apt.guojing.io`.
+
+### Maintaining the apt repository
+
+One-time setup:
+
+1. Create a passphrase-less signing key and store it as a secret:
+
+   ```sh
+   export GNUPGHOME=$(mktemp -d)
+   gpg --batch --passphrase '' --quick-gen-key \
+       'apt.guojing.io archive key' ed25519 sign never
+   gpg --armor --export-secret-keys | gh secret set APT_SIGNING_KEY
+   gpg --armor --export-secret-keys > apt-signing-key.asc  # keep offline
+   ```
+
+   The public half is re-exported on every run, so rotating the key only
+   means replacing the secret (users then re-download the keyring).
+2. DNS: `apt.guojing.io  CNAME  jing2uo.github.io.`
+3. Run `publish-apt` once to create `gh-pages`, then enable Pages from that
+   branch with the custom domain and HTTPS:
+
+   ```sh
+   gh api -X POST repos/{owner}/{repo}/pages -f 'source[branch]=gh-pages' -f 'source[path]=/'
+   gh api -X PUT  repos/{owner}/{repo}/pages -f cname=apt.guojing.io -F https_enforced=true
+   ```
+
+   (`https_enforced` only succeeds once GitHub has issued the certificate,
+   which can take a few minutes after DNS resolves.)
+
 ## Repository layout
 
 ```
 packaging/scx/        debian/ packaging for the schedulers (source: sched-ext/scx)
 packaging/scx-loader/ debian/ packaging for the loader (source: sched-ext/scx-loader)
 scripts/prepare-source.sh   clone tag -> cargo vendor -> orig tarball -> overlay packaging/
+scripts/build-apt-repo.sh   debs -> signed apt repo tree (dists/, pool/, keyring)
 Containerfile        debian:sid build environment (shared by local builds and CI)
 build.sh             local build wrapper (podman or docker)
 ```

@@ -1,0 +1,72 @@
+name: publish-apt
+
+# Rebuild the apt repository at https://apt.guojing.io from the debs attached
+# to the most recent GitHub Releases, sign it, and force-push it to the
+# gh-pages branch (served by GitHub Pages). Stateless: every run regenerates
+# the whole tree, so it is safe to re-run at any time.
+#
+# Needs the APT_SIGNING_KEY secret: an ASCII-armored, passphrase-less GPG
+# private key (see README "Maintaining the apt repository").
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-apt
+  cancel-in-progress: false
+
+env:
+  KEEP_RELEASES: 3 # how many releases' debs stay installable from the repo
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch debs from recent releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p debs
+          # Newest first; --skip-existing keeps the newest copy when a deb
+          # (e.g. an unchanged scx-loader) is attached to several releases.
+          gh release list -R "$GITHUB_REPOSITORY" -L "$KEEP_RELEASES" \
+              --exclude-drafts --exclude-pre-releases \
+              --json tagName -q '.[].tagName' |
+          while read -r tag; do
+            echo ">> $tag"
+            gh release download "$tag" -R "$GITHUB_REPOSITORY" \
+              -p '*.deb' -D debs --skip-existing
+          done
+          ls -l debs
+
+      - name: Import signing key
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          set -eu
+          [ -n "$APT_SIGNING_KEY" ] || { echo "::error::APT_SIGNING_KEY secret is not set"; exit 1; }
+          printf '%s\n' "$APT_SIGNING_KEY" | gpg --batch --import
+          fpr="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')"
+          echo "GPG_KEY_ID=$fpr" >> "$GITHUB_ENV"
+
+      - name: Build repository
+        run: scripts/build-apt-repo.sh debs public
+
+      - name: Push to gh-pages
+        run: |
+          set -eu
+          cd public
+          git init -q -b gh-pages
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "apt repo from $GITHUB_SHA"
+          # Orphan single-commit branch: old debs don't pile up in history.
+          git push -f "https://x-access-token:${{ github.token }}@github.com/$GITHUB_REPOSITORY" gh-pages
