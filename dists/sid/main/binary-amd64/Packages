@@ -1,0 +1,48 @@
+Package: scx-loader
+Architecture: amd64
+Version: 1.1.3-1
+Priority: optional
+Section: misc
+Maintainer: Komh <mail@guojing.io>
+Installed-Size: 13370
+Depends: scx, libc6 (>= 2.39), libgcc-s1 (>= 4.2)
+Recommends: dbus
+Filename: pool/main/scx-loader/scx-loader_1.1.3-1_amd64.deb
+Size: 2358708
+MD5sum: ed2e636a2eef458991d7b6cb651fe424
+SHA1: 6eef3df184befe2152741d524be807f9745d3041
+SHA256: 03998b2ed9cb2f0c49f2a67cb19a2ff0fc45d69b5df824dc129631522772dd21
+SHA512: c74c946c011563cd4bce9ef16cd2ad4c2e26ab82fb2609500e64e866b9da9c4ccc199592d6f1392ac87c530ee608d0fe47e6711f8b01b0b59c65567869c5c606
+Homepage: https://github.com/sched-ext/scx-loader
+Description: DBus loader daemon for sched_ext schedulers
+ scx_loader is a system daemon and DBus-based loader for sched_ext
+ schedulers, providing the org.scx.Loader system bus interface.
+ .
+ This package ships:
+  * scx_loader - the loader daemon (dbus-activated system service)
+  * scxctl     - command line client (get/list/start/switch/stop/...)
+  * scxtui     - terminal UI for scheduler management and status
+ .
+ Configure via /etc/scx_loader.toml; enable with
+ `systemctl enable --now scx_loader.service`.
+
+Package: scx
+Architecture: amd64
+Version: 1.1.3-1
+Priority: optional
+Section: misc
+Maintainer: Komh <mail@guojing.io>
+Installed-Size: 103316
+Depends: libc6 (>= 2.39), libelf1t64 (>= 0.144), libgcc-s1 (>= 4.2), libseccomp2 (>= 2.1.0), zlib1g (>= 1:1.2.3.4)
+Filename: pool/main/scx/scx_1.1.3-1_amd64.deb
+Size: 13853260
+MD5sum: a778dcb9a2b21229cefdafe4132ba293
+SHA1: 633930a43b8a95ec7e1995c4e1900ca573f79933
+SHA256: 56f7155d634a01f2c64c93eb5d7b67dd6de40717e754673bc60f014673780ca8
+SHA512: 44041ce1c21f9f9f1ea6117e9b80f7053dd7573dba2beb64e1589492ce83e50739934fa731fa0b88d29cc1f41bfb396b962ae6c8671a535b0f413b17385be30b
+Homepage: https://github.com/sched-ext/scx
+Description: sched_ext schedulers and tools
+ sched_ext is a Linux kernel feature which enables implementing kernel thread
+ schedulers in BPF and dynamically loading them. This package contains various
+ scheduler implementations and support utilities.
+

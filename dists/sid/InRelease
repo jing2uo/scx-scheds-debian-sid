@@ -1,0 +1,34 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Architectures: amd64
+Codename: sid
+Components: main
+Date: Thu, 24 Sep 2026 06:56:44 +0000
+Description: Personal packages for Debian sid
+Label: apt.guojing.io
+Origin: apt.guojing.io
+Suite: unstable
+MD5Sum:
+ 7d6715822f8bd4540f8c0272b6cb065f             2059 main/binary-amd64/Packages
+ 3fb837f1257f255f1d0b7effef37ec8c             1087 main/binary-amd64/Packages.gz
+ f4c30b482dc1acdee2392a5d494af1b1             1168 main/binary-amd64/Packages.xz
+SHA1:
+ 22024ffd2ee2d32257d80e4f7b202949cbfc6f53             2059 main/binary-amd64/Packages
+ 0a7231c890801f77779ef5970440d1809e638191             1087 main/binary-amd64/Packages.gz
+ dbb6b8677c54202f536a2773506cbea55da14a75             1168 main/binary-amd64/Packages.xz
+SHA256:
+ 3bc5291a8cdd41c80d1913c8b5198eba234acb259ae1375c62fc482c2d096146             2059 main/binary-amd64/Packages
+ 5de0cc1184c33e97435f57c2321fe1b0ad857a5c8416db334551d81d24ff357a             1087 main/binary-amd64/Packages.gz
+ bd58bcabab962abe9888114ee49dfa4709606cd72cdc9a270d5a1fe515b0c131             1168 main/binary-amd64/Packages.xz
+SHA512:
+ f295e62fd9603a6692c9cbd14027466e8677b3f646ee29e3ba3533e27b1b9ea14a51ccc33025c1ee38d30fbc15893b16c7235f5cd3f8210a219bf9700208cd73             2059 main/binary-amd64/Packages
+ 3d7de8fec703ca25114f726c6b77886bd4900bcafa85ac65cc60fdc2cba57b81e29e68a206ad1edfefcef0818e9e39ea956d998f81fc6a13a5ace197f47d55f3             1087 main/binary-amd64/Packages.gz
+ 1f6a0e7399e536146aaf813be2b7805c1083d0ee24b796d87a77121a9b661f5de1b31ee6e9027a3ce75073fd46c6f446a7f5c54626197505895ceb60e876cd0f             1168 main/binary-amd64/Packages.xz
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQSJ29zPWiSLZ/lzp46utyUcuEFpSAUCarTJrAAKCRCutyUcuEFp
+SNzZAP4lhZk4Yx7DlIaXBtBRnUKyhAzoNn+c9das4ezly63OOwD+MsYeFYtxfrrH
+G+lP/ekFwSGJ2O+hjmrj9QJvlcenKQ4=
+=Q7Yn
+-----END PGP SIGNATURE-----
